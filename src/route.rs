@@ -1,15 +1,17 @@
 pub mod common {
-    use actix_web::{ get, web, HttpResponse };
-    use actix_identity::{ Identity };
+    use std::option::Option;
 
-    use crate::jwt::{ encode, decode };
+    use actix_identity::Identity;
+    use actix_web::{get, web, HttpResponse};
+
+    use crate::jwt::{decode, encode};
 
     use askama::Template;
 
     #[derive(Template)]
     #[template(path = "user.html")]
     struct UserPage<'a> {
-        name: &'a str
+        name: &'a str,
     }
 
     #[get("/")]
@@ -18,8 +20,14 @@ pub mod common {
     }
 
     #[get("/login/{username}")]
-    pub async fn login(user: Identity, username: web::Path<String> ) -> String {
-        user.remember(encode(username.to_string()));
+    pub async fn login(user: Identity, username: web::Path<String>) -> String {
+        let name = encode(username.to_string());
+
+        if name.is_none() {
+            return "Login failed".to_owned()
+        };
+
+        user.remember(name.unwrap());
 
         format!("Logged in as {}", username)
     }
@@ -27,35 +35,39 @@ pub mod common {
     #[get("/user")]
     pub async fn get_user(user: Identity) -> HttpResponse {
         if user.identity().is_none() {
-            let page = UserPage {
-                    name: "Anonymous"
-                }.render().unwrap();
+            let page = UserPage { name: "Anonymous" }.render().unwrap();
 
-            return HttpResponse::Ok()
-                .content_type("text/html")
-                .body(
-                    page
-                )
-        }
+            return HttpResponse::Ok().content_type("text/html").body(page);
+        };
 
-        let page = UserPage {
-            name: &decode(user.identity().unwrap())
-        }.render().unwrap();
+        let username = decode(user.identity().unwrap());
 
-        HttpResponse::Ok()
-            .content_type("text/html")
-            .body(
-                page
-            )
+        let page = if let Some(name) = username {
+            UserPage {
+                name: &name,
+            }
+            .render()
+            .unwrap()
+        } else {
+            UserPage {
+                name: "Anonymous",
+            }
+            .render()
+            .unwrap()
+        };
+
+        HttpResponse::Ok().content_type("text/html").body(page)
     }
 
     #[get("/user/without-template")]
     pub async fn get_user_without_template(user: Identity) -> String {
         if user.identity().is_none() {
-            return format!("Logged in as anonymous")
+            return format!("Logged in as anonymous");
         }
 
-        format!("Logged in as {}", decode(user.identity().unwrap()))
+        let name = decode(user.identity().unwrap()).unwrap();
+
+        format!("Logged in as {}", name)
     }
 
     #[get("/logout")]

@@ -1,4 +1,5 @@
 use std::env;
+use std::option::Option;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use jsonwebtoken::{
@@ -19,7 +20,7 @@ fn get_time() -> u128 {
     start.duration_since(UNIX_EPOCH).unwrap().as_millis() + 86400 * 3
 }
 
-pub fn encode(name: String) -> String {
+pub fn encode(name: String) -> Option<String> {
     let auth_payload = AuthPayload {
         sub: "token".to_owned(),
         name: name,
@@ -32,13 +33,13 @@ pub fn encode(name: String) -> String {
         &EncodingKey::from_secret(&env::var("jwt_secret").unwrap().as_ref()),
     ) {
         Ok(value) => value,
-        Err(_) => panic!(),
+        Err(_) => return None,
     };
 
-    return auth_token;
+    Some(auth_token)
 }
 
-pub fn decode(token: String) -> String {
+pub fn decode(token: String) -> Option<String> {
     let validation = Validation {
         sub: Some("token".to_owned()),
         ..Validation::default()
@@ -49,9 +50,9 @@ pub fn decode(token: String) -> String {
         &DecodingKey::from_secret(&env::var("jwt_secret").unwrap().as_ref()),
         &validation,
     ) {
-        Ok(c) => c,
-        Err(_) => panic!("Error"),
+        Ok(value) => value,
+        Err(_) => return None,
     };
 
-    return auth_token.claims.name;
+    Some(auth_token.claims.name)
 }
