@@ -1,7 +1,9 @@
 mod error;
 mod jwt;
 mod route;
+mod time;
 
+use std::env;
 use std::io;
 
 use actix_identity::{CookieIdentityPolicy, IdentityService};
@@ -17,7 +19,7 @@ async fn main() -> io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(IdentityService::new(
-                CookieIdentityPolicy::new(&[69; 32])
+                CookieIdentityPolicy::new(env::var("cookie_secret").unwrap().as_bytes())
                     .name("auth")
                     .secure(false),
             ))

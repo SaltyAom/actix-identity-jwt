@@ -1,11 +1,12 @@
 use std::env;
 use std::option::Option;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use jsonwebtoken::{
     decode as jwt_decode, encode as jwt_encode, DecodingKey, EncodingKey, Header, Validation,
 };
 use serde::{Deserialize, Serialize};
+
+use crate::time::get_expire_time;
 
 #[derive(Serialize, Deserialize)]
 pub struct AuthPayload {
@@ -14,17 +15,12 @@ pub struct AuthPayload {
     pub exp: u128,
 }
 
-fn get_time() -> u128 {
-    let start = SystemTime::now();
-
-    start.duration_since(UNIX_EPOCH).unwrap().as_millis() + 86400 * 3
-}
-
-pub fn encode(name: String) -> Option<String> {
+#[inline(always)]
+pub fn encode(name: &str) -> Option<String> {
     let auth_payload = AuthPayload {
         sub: "token".to_owned(),
-        name: name,
-        exp: get_time(),
+        name: name.to_owned(),
+        exp: get_expire_time(),
     };
 
     let auth_token = match jwt_encode(
@@ -39,7 +35,8 @@ pub fn encode(name: String) -> Option<String> {
     Some(auth_token)
 }
 
-pub fn decode(token: String) -> Option<String> {
+#[inline(always)]
+pub fn decode(token: &str) -> Option<AuthPayload> {
     let validation = Validation {
         sub: Some("token".to_owned()),
         ..Validation::default()
@@ -54,5 +51,5 @@ pub fn decode(token: String) -> Option<String> {
         Err(_) => return None,
     };
 
-    Some(auth_token.claims.name)
+    Some(auth_token.claims)
 }
